@@ -36,9 +36,7 @@ runs:
           -H 'Content-Type: application/json' \
           -H "x-api-key: $DOKPLOY_TOKEN" \
           -d "{\"applicationId\": \"$DOKPLOY_APP_ID\", \"dockerImage\": \"$DOKPLOY_IMAGE\"}" \
-          -w "%{http_code}" \
-          -o /dev/null \
-          -s)
+          -w "\n%{http_code}" -s)
 
         http_code=$(echo "$response" | tail -n 1)
         body=$(echo "$response" | head -n -1)
