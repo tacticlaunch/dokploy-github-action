@@ -1,18 +1,18 @@
-name: "Update Dokploy Deployment Image"
-description: "Triggers a Dokploy deployment with a new Docker image"
+name: 'Deploy to Dokploy'
+description: 'Triggers a Dokploy deployment with a new Docker image'
 
 inputs:
   base_url:
-    description: "Dokploy base URL (e.g., https://dokploy.example.com)"
+    description: 'Dokploy base URL (e.g., https://dokploy.example.com)'
     required: true
   token:
-    description: "Dokploy API authentication token"
+    description: 'Dokploy API authentication token'
     required: true
   application_id:
-    description: "Dokploy application ID (retrieve from /api/project.all)"
+    description: 'Dokploy application ID (retrieve from /api/project.all)'
     required: true
   image:
-    description: "Docker image to deploy"
+    description: 'Docker image to deploy'
     required: true
 
 branding:
@@ -20,9 +20,9 @@ branding:
   color: blue
 
 runs:
-  using: "composite"
+  using: 'composite'
   steps:
-    - name: Trigger Dokploy Deployment
+    - name: Update Dokploy application image
       shell: bash
       env:
         DOKPLOY_URL: ${{ inputs.base_url }}
@@ -51,13 +51,31 @@ runs:
 
         if [[ "$http_code" != "200" ]]; then
           echo "::error::Failed to trigger deployment. HTTP $http_code"
-          echo "Response: $body"
           exit 1
         fi
-
         if [[ "$body" != "true" ]]; then
           echo "::error::Deployment failed. Expected 'true', got '$body'"
           exit 1
         fi
 
-        echo "::notice::Deployment triggered successfully for application ID $DOKPLOY_APP_ID using image $DOKPLOY_IMAGE"
+    - name: 'Dokploy Deployment'
+      shell: bash
+      env:
+        DOKPLOY_URL: ${{ inputs.base_url }}
+        DOKPLOY_AUTH_TOKEN: ${{ inputs.token }}
+        DOKPLOY_APPLICATION_ID: ${{ inputs.application_id }}
+      run: |
+        response=$(curl -X 'POST' \
+          "$DOKPLOY_URL/api/application.deploy" \
+          -H 'accept: application/json' \
+          -H 'Content-Type: application/json' \
+          -H "Authorization: Bearer $DOKPLOY_AUTH_TOKEN" \
+          -d "{\"applicationId\": \"$DOKPLOY_APPLICATION_ID\"}" \
+          -w "%{http_code}" \
+          -o /dev/null \
+          -s)
+
+        if [ "$response" -ne 200 ]; then
+          echo "::error::Deployment failed with status code: $response"
+          exit 1
+        fi
