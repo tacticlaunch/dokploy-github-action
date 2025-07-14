@@ -30,31 +30,24 @@ runs:
         DOKPLOY_APP_ID: ${{ inputs.application_id }}
         DOKPLOY_IMAGE: ${{ inputs.image }}
       run: |
-        set -euo pipefail
-
-        API_ENDPOINT="$DOKPLOY_URL/api/application.update"
-        JSON_PAYLOAD=$(jq -n \
-          --arg id "$DOKPLOY_APP_ID" \
-          --arg img "$DOKPLOY_IMAGE" \
-          '{applicationId: $id, dockerImage: $img}')
-
-        echo "Triggering deployment to Dokploy at $DOKPLOY_URL for application ID $DOKPLOY_APP_ID..."
-
-        response=$(curl -sS -w "\n%{http_code}" -X POST "$API_ENDPOINT" \
-          -H "accept: application/json" \
-          -H "Content-Type: application/json" \
+        response=$(curl -X 'POST' \
+          "$DOKPLOY_URL/api/application.update" \
+          -H 'accept: application/json' \
+          -H 'Content-Type: application/json' \
           -H "x-api-key: $DOKPLOY_TOKEN" \
-          -d "$JSON_PAYLOAD")
+          -d "{\"applicationId\": \"$DOKPLOY_APPLICATION_ID\", \"dockerImage\": \"$DOKPLOY_IMAGE\"}" \
+          -w "\n%{http_code}" -s)
 
-        http_code=$(echo "$response" | tail -n1)
-        body=$(echo "$response" | head -n-1)
+        http_code=$(echo "$response" | tail -n 1)
+        body=$(echo "$response" | head -n -1)
 
-        if [[ "$http_code" != "200" ]]; then
-          echo "::error::Failed to trigger deployment. HTTP $http_code"
+        if [ "$http_code" -ne 200 ]; then
+          echo "::error::Deployment failed with status code: $http_code"
           exit 1
         fi
-        if [[ "$body" != "true" ]]; then
-          echo "::error::Deployment failed. Expected 'true', got '$body'"
+
+        if [ "$body" != "true" ]; then
+          echo "::error::Deployment failed: expected 'true' but got '$body'"
           exit 1
         fi
 
