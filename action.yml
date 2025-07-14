@@ -26,8 +26,8 @@ runs:
       shell: bash
       env:
         DOKPLOY_URL: ${{ inputs.base_url }}
-        DOKPLOY_TOKEN: ${{ inputs.token }}
         DOKPLOY_APP_ID: ${{ inputs.application_id }}
+        DOKPLOY_TOKEN: ${{ inputs.token }}
         DOKPLOY_IMAGE: ${{ inputs.image }}
       run: |
         response=$(curl -X 'POST' \
@@ -35,8 +35,10 @@ runs:
           -H 'accept: application/json' \
           -H 'Content-Type: application/json' \
           -H "x-api-key: $DOKPLOY_TOKEN" \
-          -d "{\"applicationId\": \"$DOKPLOY_APPLICATION_ID\", \"dockerImage\": \"$DOKPLOY_IMAGE\"}" \
-          -w "\n%{http_code}" -s)
+          -d "{\"applicationId\": \"$DOKPLOY_APP_ID\", \"dockerImage\": \"$DOKPLOY_IMAGE\"}" \
+          -w "%{http_code}" \
+          -o /dev/null \
+          -s)
 
         http_code=$(echo "$response" | tail -n 1)
         body=$(echo "$response" | head -n -1)
@@ -55,15 +57,15 @@ runs:
       shell: bash
       env:
         DOKPLOY_URL: ${{ inputs.base_url }}
-        DOKPLOY_AUTH_TOKEN: ${{ inputs.token }}
-        DOKPLOY_APPLICATION_ID: ${{ inputs.application_id }}
+        DOKPLOY_APP_ID: ${{ inputs.application_id }}
+        DOKPLOY_TOKEN: ${{ inputs.token }}
       run: |
         response=$(curl -X 'POST' \
           "$DOKPLOY_URL/api/application.deploy" \
           -H 'accept: application/json' \
           -H 'Content-Type: application/json' \
-          -H "Authorization: Bearer $DOKPLOY_AUTH_TOKEN" \
-          -d "{\"applicationId\": \"$DOKPLOY_APPLICATION_ID\"}" \
+          -H "x-api-key: $DOKPLOY_TOKEN" \
+          -d "{\"applicationId\": \"$DOKPLOY_APP_ID\"}" \
           -w "%{http_code}" \
           -o /dev/null \
           -s)
