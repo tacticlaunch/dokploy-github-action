@@ -1,0 +1,63 @@
+name: "Update Dokploy Deployment Image"
+description: "Triggers a Dokploy deployment with a new Docker image"
+
+inputs:
+  base_url:
+    description: "Dokploy base URL (e.g., https://dokploy.example.com)"
+    required: true
+  token:
+    description: "Dokploy API authentication token"
+    required: true
+  application_id:
+    description: "Dokploy application ID (retrieve from /api/project.all)"
+    required: true
+  image:
+    description: "Docker image to deploy"
+    required: true
+
+branding:
+  icon: activity
+  color: blue
+
+runs:
+  using: "composite"
+  steps:
+    - name: Trigger Dokploy Deployment
+      shell: bash
+      env:
+        DOKPLOY_URL: ${{ inputs.base_url }}
+        DOKPLOY_TOKEN: ${{ inputs.token }}
+        DOKPLOY_APP_ID: ${{ inputs.application_id }}
+        DOKPLOY_IMAGE: ${{ inputs.image }}
+      run: |
+        set -euo pipefail
+
+        API_ENDPOINT="$DOKPLOY_URL/api/application.update"
+        JSON_PAYLOAD=$(jq -n \
+          --arg id "$DOKPLOY_APP_ID" \
+          --arg img "$DOKPLOY_IMAGE" \
+          '{applicationId: $id, dockerImage: $img}')
+
+        echo "Triggering deployment to Dokploy at $DOKPLOY_URL for application ID $DOKPLOY_APP_ID..."
+
+        response=$(curl -sS -w "\n%{http_code}" -X POST "$API_ENDPOINT" \
+          -H "accept: application/json" \
+          -H "Content-Type: application/json" \
+          -H "x-api-key: $DOKPLOY_TOKEN" \
+          -d "$JSON_PAYLOAD")
+
+        http_code=$(echo "$response" | tail -n1)
+        body=$(echo "$response" | head -n-1)
+
+        if [[ "$http_code" != "200" ]]; then
+          echo "::error::Failed to trigger deployment. HTTP $http_code"
+          echo "Response: $body"
+          exit 1
+        fi
+
+        if [[ "$body" != "true" ]]; then
+          echo "::error::Deployment failed. Expected 'true', got '$body'"
+          exit 1
+        fi
+
+        echo "::notice::Deployment triggered successfully for application ID $DOKPLOY_APP_ID using image $DOKPLOY_IMAGE"
